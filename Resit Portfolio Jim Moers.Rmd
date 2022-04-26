@@ -1,0 +1,350 @@
+---
+title: "Portfolio Jim Moers2"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: scroll
+    storyboard: true
+---
+```{r setup, include=FALSE}
+library(spotifyr)
+library(ggplot2)
+library(tidyverse)
+library(dplyr)
+library(plotly)
+library(compmus)
+Floating_Points <- get_playlist_audio_features("", "5KebRTYjItlSsLlUE1Im2E")
+Pharoah_Sanders <- get_playlist_audio_features("", "4T277sUcE2zOO4jW3FVl04")
+London_Symphony_Orchestra <- get_playlist_audio_features("","5oka6nlrTGK22717u1lgjf")
+Promises <- get_playlist_audio_features("", "1h68Oc6QFWEUaCRnR69Co9")    
+combined <- rbind(Floating_Points, Pharoah_Sanders, London_Symphony_Orchestra, Promises)    
+```
+
+Introduction
+=============================================================
+
+In 2021 Floating Points, Pharoah Sanders and The London Symphony Orchestra released their collaborative classical jazz album Promises. Artists collaborating with eachother is something that is pretty common, but what makes Promises a special album is how different the styles of these artists normally are. Floating Points is known for making experimental dance music and IDM, Pharoah Sanders plays free jazz and avant garde jazz and The London Symphony Orchestra (LSO) is an orchestra that has been existing since 1904 that plays mostly classical symphonies and has recorded many famous movie soundtracks. 
+
+In this portfolio I am going to compare these musicians to their collaborative album and each other. Through this I want to explore what influences for the artists their music can be seen on Promises and what the similarities and differences are between these artists. For promises the entire album is used in the portfolio, for Floating Points, Pharoah Sanders and the London Symphony Orchestra the "this is..." playlists from spotify are used. These are playlists that should give a representation of the artists. I have edited the playlists to filter out the songs that are also on Promises, so songs won't be compared to themselves. In this resarch I am first going to do some track level analysis between the three artists and their album to see if from here major differences between them can allready be recognised. After that there are going to be some analysis on chroma features of individual songs in the corpus. Then some key features of both individual songs and key features of the entire corpus will be examined. In the next part I'm going to analyse the tempo of individual songs and the entire corpus. In the last chapter some cluster analysis will be done.
+
+
+
+Track level analysis
+===========================================================
+In this first chapter, some analysis will be done on the different artists and their album to see if a similarities and differences can be seen. 
+
+Graph 1: boxplot of valence
+---------------------------------------------------------------
+### boxplot
+When listening to the three artists and their album Promises, something that is noticeable is that all of them make music that overall doesn't sound like happy music. To check if this comes up in the data, a boxplot has been done that shows the range of the valence the artists music and Promises are in. The valence will be on a scale of 0 to 1, with 1 being positive (happy, cheerfull) and 0 being negative (sad, depressed)
+
+The feeling that the music generally doesn't sound very happy is very notable in the boxplot for the London Symphony Orchestra and Promises. Both have a median valence 0.07, which is close to the lowest score possible. Promises only has a max valence of 0.35. The London Symphony Orchestra has one very high outlier at 0.82 valence, which is the Cantina Band from the Star Wars soundtrack. Both floating points and Pharoah Sanders have songs on the entire valence spectrum, but the median for floating points is low at 0.25, which means he does have songs that are positive, but most of them are more negative. Pharoah Sanders median valence is more towards the middle at 0.43 and it is visible in the boxplot that his valence is very spread out between 0.07 and 0.83. 
+
+### danceability and energy 
+For the second track level analysis, I'm going doing an analysis of something for which there is a noticeable difference between the artists and promises: danceability and energy. Because these artists all play very different genres with different danceability and energy I made a scatterplot for these variables. Both variables are on a scale of 0 to 1.
+
+As expected, the differences between artists can be seen on the scatterplot. Promises scores very low in both danceability and energy. This is probably because the albums has no drums or beats, which is mostly what makes music more energized and danceable. the LSO generally also scores very low on both variables, but has some songs with slightly higher danceability and energy. Interesting about Pharoah Sanders is that he has many songs on the entire spectrum of energy, but no songs that score high in danceability, this could be because he has many high tempo jazz songs, which have a lot of energy, but wouldn't be labeled as danceable. As expected from an artists that makes dance music, many of floating points songs are high on the scale of both danceability and energy. 
+
+
+Graphs
+--------------------------------------------------------------------------
+### figure 1: Boxplot of valence 
+```{r, echo = FALSE}
+
+boxplot_valence <- ggplot(combined, aes(x = playlist_name, y = valence)) +
+  geom_boxplot() 
+
+ggplotly(boxplot_valence)
+```
+
+
+### figure 2: scatterplot of danceability and tempo
+
+```{r, echo = FALSE}
+
+scatter_danceability_energy <- ggplot(combined, aes(x = danceability, y = energy, color = playlist_name)) +
+  geom_point()
+
+ggplotly(scatter_danceability_energy)
+```
+
+Chromagram and Self Similarity Matrices
+===================================================
+For the chromagram and Self similarity matrices the song Movement 2 from the colaborative album Promises was used. This song was chosen because there is a shift in instrumentation in the middle of the song and it would be interesting to see how this translates into the data.
+
+chromagram 
+-------------------------------------------------------------------------
+### Chromagram
+Because it is a song where there are not many instruments playing at the same time, it translates very well into a chromagram. the song starts with strings playing long notes with a piano playing a few repeated notes at the start of every bar. From the chromagram it is clear to see what notes the strings are playing because of the long yellow bars. At around 60 seconds a saxophone comes in strting with one long note, then doing playing a small solo and again ending on a long note that slowly fades out, with the last 30 seconds again being only strings and piano. Because the saxophone stands out so much from the rest of the music it is very visible what notes he is playing in the solo: he plays combinations of C, D#, F, G, G# and A#. The fact that Promises doesn't have any drums or beats probably contributes to the chromagram being much easier to read. 
+
+### figure 3: chromagram of Movement 2
+``` {r, echo = FALSE}
+movement_2 <-
+  get_tidy_audio_analysis("7Dz3hFXlpXZQ1BRoxAnQtP") %>%
+  select(segments)%>%
+  unnest(segments)%>%
+  select(start, duration, pitches)
+
+movement_2 %>%
+  mutate(pitches = map(pitches, compmus_normalise, "euclidean")) %>%
+  compmus_gather_chroma() %>% 
+  ggplot(
+    aes(
+      x = start + duration / 2,
+      width = duration,
+      y = pitch_class,
+      fill = value
+    )
+  ) +
+  geom_tile() +
+  labs(x = "Time (s)", y = NULL, fill = "Magnitude") +
+  theme_minimal() +
+  scale_fill_viridis_c()
+```
+
+self similarity matrix 
+--------------------------------------------------------------------------------------------------
+### Self similarity matrix
+
+Interesting to see is that the self similarity matrices of timbre (left) and pitches (right) are very similar to eachother. Both show a shift in the part were the saxopohne comes in. However, this shift is more visible in the pitches than in the timbre. The big difference in the pitch self similarity matrix is to be expected, because the switch is also very obvious in the chromagram. I would however expect a bigger difference in the timbre self similarity matrix, because the timbre of a saxophone is much different from the timbre of strings. I also would expect the timbre on the end of the song to be more like the timbre from the start, because it ends with the same instrument as it started with. However, this can not be seen in the timbre self similarity matrix
+
+### figure 4: self similarity matrices of Movement 2
+```{r, echo = FALSE}
+movement_2 <-
+  get_tidy_audio_analysis("7Dz3hFXlpXZQ1BRoxAnQtP") %>% # Change URI.
+  compmus_align(bars, segments) %>%                     # Change `bars`
+  select(bars) %>%                                      #   in all three
+  unnest(bars) %>%                                      #   of these lines.
+  mutate(
+    pitches =
+      map(segments,
+          compmus_summarise, pitches,
+          method = "rms", norm = "euclidean"              # Change summary & norm.
+      )
+  ) %>%
+  mutate(
+    timbre =
+      map(segments,
+          compmus_summarise, timbre,
+          method = "rms", norm = "euclidean"              # Change summary & norm.
+      )
+  )
+
+movement_2 %>%
+  compmus_self_similarity(timbre, "cosine") %>% 
+  ggplot(
+    aes(
+      x = xstart + xduration / 2,
+      width = xduration,
+      y = ystart + yduration / 2,
+      height = yduration,
+      fill = d
+    )
+  ) +
+  geom_tile() +
+  coord_fixed() +
+  scale_fill_viridis_c(guide = "none") +
+  theme_classic() +
+  labs(x = "", y = "")
+
+movement_2 %>%
+  compmus_self_similarity(pitches, "cosine") %>% 
+  ggplot(
+    aes(
+      x = xstart + xduration / 2,
+      width = xduration,
+      y = ystart + yduration / 2,
+      height = yduration,
+      fill = d
+    )
+  ) +
+  geom_tile() +
+  coord_fixed() +
+  scale_fill_viridis_c(guide = "none") +
+  theme_classic() +
+  labs(x = "", y = "")
+```
+
+Key analysis
+============================================================
+text
+-----------------------------------------------------------------------------------------
+### chordogram
+
+As a mostly a classical album with jazz influences, Promises doesn't contain a lot of chords. Because of this, I thought it would be interesting to see if there was any information to be found when looking at a chordogram of one of the songs on the album. I used a chordogram of the album opener "Movement 1" However, as maybe could have been expected, there is not a lot of information to be taken from the chordogram. It is more noticable which chords are not played than which chords are played. What stands out on the chordogram is the sudden yellow stripe at around 280 seconds where it thinks many chords are played at the same time, but there is no sudden shift in the music that explaines that switch. It is possible that it's a saxophone thats playing slightly between chords, which makes the chordogram think it is playing multiple chords at once. 
+
+
+### Key histogram
+To compare the artists to eachother, a histogram was made for the different keys. With this, it can be seen how many songs each artist has in each key.  This histogram starts at 0, which is the C key and goes up to 12 which is the B key. When looking at this histogram, the first thing that stands out is that except for two songs, the entire album Promises is in the C key. This could be because between a lot of songs on Promises, there is no clear stop between songs, many songs overlap into each other. With this it would make sense for songs to be in the same key, because it might sound off if there was a sudden switch in key. The second thing that stands out is that both floating points and the LSO have one key they have got more songs in than others. For the LSO this is the C key, just like the Promises album. For Floating points this is the F key. The reason for making many songs in the same key could be either personal preference of the musician or it could be that a certain key works well for a certain genre. 
+
+
+
+graphs
+--------------------------------------------------------------------------------------------
+### figure 5: keygram of Movement 1
+``` {r echo = FALSE}
+circshift <- function(v, n) {
+  if (n == 0) v else c(tail(v, n), head(v, -n))
+}
+
+#      C     C#    D     Eb    E     F     F#    G     Ab    A     Bb    B
+major_chord <-
+  c(   1,    0,    0,    0,    1,    0,    0,    1,    0,    0,    0,    0)
+minor_chord <-
+  c(   1,    0,    0,    1,    0,    0,    0,    1,    0,    0,    0,    0)
+seventh_chord <-
+  c(   1,    0,    0,    0,    1,    0,    0,    1,    0,    0,    1,    0)
+
+major_key <-
+  c(6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88)
+minor_key <-
+  c(6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17)
+
+chord_templates <-
+  tribble(
+    ~name, ~template,
+    "Gb:7", circshift(seventh_chord, 6),
+    "Gb:maj", circshift(major_chord, 6),
+    "Bb:min", circshift(minor_chord, 10),
+    "Db:maj", circshift(major_chord, 1),
+    "F:min", circshift(minor_chord, 5),
+    "Ab:7", circshift(seventh_chord, 8),
+    "Ab:maj", circshift(major_chord, 8),
+    "C:min", circshift(minor_chord, 0),
+    "Eb:7", circshift(seventh_chord, 3),
+    "Eb:maj", circshift(major_chord, 3),
+    "G:min", circshift(minor_chord, 7),
+    "Bb:7", circshift(seventh_chord, 10),
+    "Bb:maj", circshift(major_chord, 10),
+    "D:min", circshift(minor_chord, 2),
+    "F:7", circshift(seventh_chord, 5),
+    "F:maj", circshift(major_chord, 5),
+    "A:min", circshift(minor_chord, 9),
+    "C:7", circshift(seventh_chord, 0),
+    "C:maj", circshift(major_chord, 0),
+    "E:min", circshift(minor_chord, 4),
+    "G:7", circshift(seventh_chord, 7),
+    "G:maj", circshift(major_chord, 7),
+    "B:min", circshift(minor_chord, 11),
+    "D:7", circshift(seventh_chord, 2),
+    "D:maj", circshift(major_chord, 2),
+    "F#:min", circshift(minor_chord, 6),
+    "A:7", circshift(seventh_chord, 9),
+    "A:maj", circshift(major_chord, 9),
+    "C#:min", circshift(minor_chord, 1),
+    "E:7", circshift(seventh_chord, 4),
+    "E:maj", circshift(major_chord, 4),
+    "G#:min", circshift(minor_chord, 8),
+    "B:7", circshift(seventh_chord, 11),
+    "B:maj", circshift(major_chord, 11),
+    "D#:min", circshift(minor_chord, 3)
+  )
+
+key_templates <-
+  tribble(
+    ~name, ~template,
+    "Gb:maj", circshift(major_key, 6),
+    "Bb:min", circshift(minor_key, 10),
+    "Db:maj", circshift(major_key, 1),
+    "F:min", circshift(minor_key, 5),
+    "Ab:maj", circshift(major_key, 8),
+    "C:min", circshift(minor_key, 0),
+    "Eb:maj", circshift(major_key, 3),
+    "G:min", circshift(minor_key, 7),
+    "Bb:maj", circshift(major_key, 10),
+    "D:min", circshift(minor_key, 2),
+    "F:maj", circshift(major_key, 5),
+    "A:min", circshift(minor_key, 9),
+    "C:maj", circshift(major_key, 0),
+    "E:min", circshift(minor_key, 4),
+    "G:maj", circshift(major_key, 7),
+    "B:min", circshift(minor_key, 11),
+    "D:maj", circshift(major_key, 2),
+    "F#:min", circshift(minor_key, 6),
+    "A:maj", circshift(major_key, 9),
+    "C#:min", circshift(minor_key, 1),
+    "E:maj", circshift(major_key, 4),
+    "G#:min", circshift(minor_key, 8),
+    "B:maj", circshift(major_key, 11),
+    "D#:min", circshift(minor_key, 3)
+  )
+movement_1 <-
+  get_tidy_audio_analysis("5mVNAL01dr6qjEWqwIMmmo") %>%
+  compmus_align(sections, segments) %>%
+  select(sections) %>%
+  unnest(sections) %>%
+  mutate(
+    pitches =
+      map(segments,
+        compmus_summarise, pitches,
+        method = "mean", norm = "manhattan"
+      )
+  )
+
+movement_1 %>% 
+  compmus_match_pitch_template(
+    chord_templates,         # Change to chord_templates if descired
+    method = "euclidean",  # Try different distance metrics
+    norm = "manhattan"     # Try different norms
+  ) %>%
+  ggplot(
+    aes(x = start + duration / 2, width = duration, y = name, fill = d)
+  ) +
+  geom_tile() +
+  scale_fill_viridis_c(guide = "none") +
+  theme_minimal() +
+  labs(x = "Time (s)", y = "")
+```
+
+### figure 6: histogram of keys of whole corpus
+``` {r, echo = FALSE}
+histogram_keys <- ggplot(combined, aes(key, fill = playlist_name)) +
+  geom_histogram()
+
+ggplotly(histogram_keys)
+```
+
+Tempo data
+============================================================
+
+text
+------------------------------------------------------------------
+### tempogram
+As said before, Promises does not contain any drums or beats. This makes a tempogram very difficult to make, because it is hard to recognise repetitions. I thought it would still be interesting to take a look at a tempogram to see if anything can be found from it. I took the song movement 4, because it is the only song on the album that contains singing (however more in a humming form.), and i thought it would be interesting to see if, because there are no drums, the tempogram would focus on that.
+
+Looking at the tempogram that is probably what happened. The song contains quick mumbled humming it is visible that the tempogram goes along with that. It also shows the points at which it stops. He goes slower on a more consistent note between around 40 second and 60 seconds than speeds up again. The tempogram is interesting to see, however it does not say a lot about the tempo of the music. 
+
+### boxplot of tempo's
+To compare the artists to their colaboratorive album, I made a boxplot of the tempo's of the corpus. Once again here, the median tempo's of Promises and the LSO are very close to eachother, at 87 and 86 bpm. The tempo's of both Floating Points and Pharoah Sanders are much higher, at 121 and 117 bpm. 
+
+graphs
+-------------------------------------------------------------------------
+
+### figure 7: tempogram of movement 4
+``` {r echo = FALSE}
+movement4 <- get_tidy_audio_analysis("4NiOo1SBW7LiZ2DMssD0SD")
+
+movement4 %>%
+  tempogram(window_size = 8, hop_size = 1, cyclic = FALSE) %>%
+  ggplot(aes(x = time, y = bpm, fill = power)) +
+  geom_raster() +
+  scale_fill_viridis_c(guide = "none") +
+  labs(x = "Time (s)", y = "Tempo (BPM)") +
+  theme_classic()
+
+```
+
+
+### figure 8: Histogram of tempo's of entire corpus
+``` {r, echo = FALSE}
+boxplot_tempo <- ggplot(combined, aes(x = playlist_name, y = tempo)) +
+  geom_boxplot() 
+
+ggplotly(boxplot_tempo)
+
+```
+```
+
+Conclusion
+===================================================================
+After doing many different analysis on the tempo, timbre, chroma and loudness features of the corpus, it is clear to see that the artist that overall is the closest to the colaboratorive album Promises is the London Symphony Orchestra. This was in a way to be expected, because the genre Promises comes closest to is classical music, which is also the genre that the LSO makes. However, I expected the influences from Floating Points and Pharoah Sanders to be more apparent when looking at the data, because when listening to the music, their influences are hearable. It could be possible that these types of analysis are more sensitive to genre and instrument related variables than the more nuanced small differences between the artists. What also could make a big difference is the use of drums in both Pharoah Sanders and Floating Points's music. Because Promises uses no drums, there is suddenly a big difference in timbre, loudnes and potentially also tempo of the music. 
